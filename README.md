@@ -4,7 +4,7 @@ OCD 是强迫症的简称
 
 ## 复刻/维护自己的规则集
 
-所有逻辑都在 `.github/workflows/ci.yaml`，问下 AI 就能自己改了
+所有逻辑都在 `.github/workflows/ci.yaml`，ChatGPT 网页版装 GitHub 插件，跟 AI 对话就能改了
 
 ## 背景
 
