@@ -20,12 +20,15 @@ download_and_check() {
     local expected_md5=$2
     local url=$3
     local output_text_file=$4
+    local output_mrs_file="${output_text_file%.txt}.mrs"
+    local output_mrs_log="${output_mrs_file}.log"
 
     if wget -q --no-proxy -O "$output_file" "$url"; then
         local actual_md5
         actual_md5=$(md5sum "$output_file" | awk '{print $1}')
         if [[ "$actual_md5" == "$expected_md5" ]]; then
-            rm -f "$output_file"
+            # 当前规则集为空时，清理本次 YAML 和历史遗留的 txt/mrs，避免旧规则继续被提交或使用
+            rm -f "$output_file" "$output_text_file" "$output_mrs_file" "$output_mrs_log"
         else
             cp "$output_file" "$output_text_file"
         fi
