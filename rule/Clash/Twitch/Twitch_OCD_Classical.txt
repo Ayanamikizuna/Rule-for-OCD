@@ -1,0 +1,2 @@
+DOMAIN-KEYWORD,ttvnw
+PROCESS-NAME,tv.twitch.android.app
