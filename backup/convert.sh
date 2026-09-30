@@ -15,6 +15,35 @@ fix_cidr_in_file() {
     sed -i -E 's/^(IP-CIDR6,([0-9a-fA-F:]+))(,no-resolve)$/\1\/128\3/' "$file"
 }
 
+generate_residual_classical() {
+    local source_file=$1
+    local output_yaml=$2
+    local output_text=$3
+
+    # 只保留无法放进 domain/ipcidr provider 的规则；整行原样保留
+    awk -F, '$1 == "DOMAIN-KEYWORD" || $1 == "PROCESS-NAME" || $1 == "IP-ASN"' \
+        "$source_file" > "$output_text"
+
+    if [[ -s "$output_text" ]]; then
+        python3 - "$output_text" "$output_yaml" <<'PY'
+import json
+import sys
+
+text_path, yaml_path = sys.argv[1:3]
+
+with open(text_path, "r", encoding="utf-8") as src:
+    rules = [line.rstrip("\r\n") for line in src if line.rstrip("\r\n")]
+
+with open(yaml_path, "w", encoding="utf-8", newline="\n") as dst:
+    dst.write("payload:\n")
+    for rule in rules:
+        dst.write(f"  - {json.dumps(rule, ensure_ascii=False)}\n")
+PY
+    else
+        rm -f "$output_text" "$output_yaml"
+    fi
+}
+
 download_and_check() {
     local output_file=$1
     local expected_md5=$2
@@ -50,6 +79,8 @@ find . -type f -name "*.list" | while IFS= read -r file; do
     OUTPUT_FILE_IP_TEXT="${file%.list}_OCD_IP.txt"
     OUTPUT_FILE_CLASSICAL_YAML="${file%.list}_OCD.yaml"
     OUTPUT_FILE_CLASSICAL_TEXT="${file%.list}_OCD.txt"
+    OUTPUT_FILE_RESIDUAL_CLASSICAL_YAML="${file%.list}_OCD_Classical.yaml"
+    OUTPUT_FILE_RESIDUAL_CLASSICAL_TEXT="${file%.list}_OCD_Classical.txt"
 
     # type=3 DOMAIN, type=4 IP, type=6 CLASSICAL
     download_and_check "$OUTPUT_FILE_DOMAIN_YAML" \
@@ -66,20 +97,29 @@ find . -type f -name "*.list" | while IFS= read -r file; do
         "TODO_REPLACE_WITH_ACTUAL_MD5" \
         "http://127.0.0.1:25500/getruleset?type=6&url=$RAW_URL_BASE64" \
         "$OUTPUT_FILE_CLASSICAL_TEXT"
+
+    generate_residual_classical "$file" \
+        "$OUTPUT_FILE_RESIDUAL_CLASSICAL_YAML" \
+        "$OUTPUT_FILE_RESIDUAL_CLASSICAL_TEXT"
 done
 echo "[$(ts)] 结束: list -> txt/yaml 阶段"
 
 # .txt -> .mrs
 echo "[$(ts)] 开始: txt -> mrs 阶段"
 find . -type f -name "*_OCD*.txt" | while IFS= read -r file; do
+    filename=$(basename "$file" .txt)
+    file_dir=$(dirname "$file")
+
+    # residual classical 已经是可直接使用的 text 格式，避免清洗 PROCESS-NAME 等规则内容
+    if [[ "$filename" == *_OCD_Classical ]]; then
+        continue
+    fi
+
     if head -n1 "$file" | grep -q "payload"; then
         sed -i '1d' "$file"
     fi
     # 删除 YAML 列表标记（行首 "- "）、单引号、剩余空白
     sed -i "s/^[[:space:]]*-[[:space:]]*//; s/'//g; s/[[:space:]]//g" "$file"
-
-    filename=$(basename "$file" .txt)
-    file_dir=$(dirname "$file")
 
     case "$filename" in
         *_OCD_Domain*) param="domain" ;;
