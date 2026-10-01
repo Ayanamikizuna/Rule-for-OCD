@@ -24,7 +24,9 @@ Stash 作为 GUI 客户端，个人猜想作者大概率没有闲工夫为内核
 
 ## 结果
 
-目前每个 .list 文件被拆分为 .mrs、.txt 和 .yaml
+Domain 和 IP 规则分别生成优化后的 .mrs、.txt 和 .yaml；原有完整 classical 的 *_OCD.yaml / *_OCD.txt 继续保留。
+
+如果源 .list 包含 DOMAIN-KEYWORD、PROCESS-NAME 或 IP-ASN，还会额外生成只包含这些剩余规则的 *_OCD_Classical.yaml / *_OCD_Classical.txt。
 
 例如 Apple.list，对应：
 
@@ -34,6 +36,10 @@ Stash 作为 GUI 客户端，个人猜想作者大概率没有闲工夫为内核
 - Apple_OCD_IP.txt
 - Apple_OCD_Domain.yaml
 - Apple_OCD_IP.yaml
+- Apple_OCD_Classical.txt
+- Apple_OCD_Classical.yaml
+- Apple_OCD.txt
+- Apple_OCD.yaml
 
 点击查看：[https://github.com/peiyingyao/Rule-for-OCD/tree/master/rule/Clash/Apple](https://github.com/peiyingyao/Rule-for-OCD/tree/master/rule/Clash/Apple)
 
@@ -45,6 +51,7 @@ rules:
   - RULE-SET,Lan_OCD_IP,DIRECT,no-resolve
   - RULE-SET,Google_OCD_Domain,<你的首个 proxy-groups 名>
   - RULE-SET,Google_OCD_IP,<你的首个 proxy-groups 名>,no-resolve
+  - RULE-SET,Google_OCD_Classical,<你的首个 proxy-groups 名>
 rule-providers:
   Lan_OCD_Domain:
     type: http
@@ -80,4 +87,14 @@ rule-providers:
     format: mrs
     path: ./rule-set/Google_OCD_IP.mrs
     interval: 86400
+  Google_OCD_Classical:
+    type: http
+    behavior: classical
+    url: >-
+      https://testingcf.jsdelivr.net/gh/peiyingyao/Rule-for-OCD@master/rule/Clash/Google/Google_OCD_Classical.txt
+    format: text
+    path: ./rule-set/Google_OCD_Classical.txt
+    interval: 86400
 ```
+
+Domain、IP 和 Classical 三个 provider 应使用同一个策略组；*_OCD_Classical 只保留 DOMAIN-KEYWORD、PROCESS-NAME 和 IP-ASN。原有 *_OCD.yaml / *_OCD.txt 仍是完整 classical 版本。
